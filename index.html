@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Space Cat Rover AR</title>
 
-    <!-- A-Frame + MindAR -->
+    <!-- A-Frame + MindAR (pin versions) -->
     <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
     <style>
       html, body { margin:0; height:100%; background:#000; }
-      /* Start overlay covers page until user taps */
       #startOverlay {
         position: fixed; inset: 0; display: grid; place-items: center;
         background: linear-gradient(180deg, #0b1322 0%, #000 80%);
@@ -24,40 +24,12 @@
         box-shadow: 0 8px 24px rgba(0,0,0,.4);
       }
     </style>
-
-    <script>
-      function reportOutcome() {
-        if (window.parent && window.parent.handleOutcome) {
-          window.parent.handleOutcome({
-            type: 'part',
-            effect: 'VideoPlayed',
-            data: { variant: 'Space Cat Rover' }
-          });
-        } else {
-          console.log("Video finished — Space Cat Rover overlay");
-        }
-      }
-
-      async function startAR() {
-        // Start the MindAR camera explicitly (satisfies user-gesture on iOS/in-app browsers)
-        const scene = document.querySelector('a-scene');
-        const mindarSystem = scene.systems['mindar-image-system'];
-        try {
-          await mindarSystem.start(); // request camera + start tracking
-        } catch (e) {
-          alert('Camera permission is required. Please allow camera in your browser.');
-          console.warn(e);
-          return;
-        }
-        document.getElementById('startOverlay').style.display = 'none';
-      }
-    </script>
   </head>
 
   <body>
-    <!-- User-gesture gate to start camera -->
+    <!-- User-gesture gate -->
     <div id="startOverlay">
-      <button id="startBtn" onclick="startAR()">Start AR</button>
+      <button id="startBtn">Start AR</button>
     </div>
 
     <a-scene
@@ -68,7 +40,6 @@
       vr-mode-ui="enabled: false">
 
       <a-assets>
-        <!-- Single video source used on the plane -->
         <video id="roverVideo"
                src="space-cat-rover-overlay.mp4"
                preload="auto"
@@ -79,9 +50,7 @@
 
       <a-camera look-controls="enabled: false"></a-camera>
 
-      <!-- Target 0 corresponds to the first image in your .mind file -->
       <a-entity id="target" mindar-image-target="targetIndex: 0">
-        <!-- Size the plane to your card's aspect (adjust width/height as needed) -->
         <a-plane position="0 0 0"
                  rotation="0 0 0"
                  width="1"
@@ -92,19 +61,51 @@
     </a-scene>
 
     <script>
+      const startBtn = document.getElementById('startBtn');
+      const startOverlay = document.getElementById('startOverlay');
+      const scene = document.querySelector('a-scene');
       const target = document.getElementById('target');
       const vid = document.getElementById('roverVideo');
 
-      // When the card is found, try to play video (muted allows autoplay on iOS)
+      // helper: prompt camera once via user gesture, then hand over to MindAR
+      async function requestCameraOnce() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          alert('Camera not available in this browser.');
+          throw new Error('No getUserMedia');
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false
+        });
+        // immediately stop preview tracks; MindAR will open its own stream
+        stream.getTracks().forEach(t => t.stop());
+      }
+
+      // Ensure scene is fully ready before starting MindAR
+      function onSceneLoaded() {
+        startBtn.addEventListener('click', async () => {
+          try {
+            // 1) iOS-friendly prompt
+            await requestCameraOnce();
+            // 2) Start MindAR after permission granted
+            const mindarSystem = scene.systems['mindar-image-system'];
+            await mindarSystem.start();
+            startOverlay.style.display = 'none';
+          } catch (e) {
+            console.warn(e);
+            alert('Please allow camera access in your browser settings.');
+          }
+        });
+      }
+
+      if (scene.hasLoaded) onSceneLoaded();
+      else scene.addEventListener('loaded', onSceneLoaded);
+
+      // Auto-play video when target is found (muted so it can autoplay)
       target.addEventListener('targetFound', async () => {
         try { await vid.play(); } catch (e) { console.warn('Video autoplay blocked:', e); }
       });
-
-      // Pause when the card is lost
       target.addEventListener('targetLost', () => { vid.pause(); });
-
-      // Notify your game (optional)
-      vid.addEventListener('ended', () => { reportOutcome(); });
     </script>
   </body>
 </html>
