@@ -19,7 +19,7 @@
   </style>
 </head>
 <body>
-  <!-- User gesture gate -->
+  <!-- User-gesture gate -->
   <div id="startOverlay"><button id="startBtn">Start AR</button></div>
 
   <a-scene
@@ -49,23 +49,21 @@
     const target = document.getElementById('target');
     const vid = document.getElementById('roverVideo');
 
-    // 1) iOS-safe: prompt camera via user gesture first
+    // Prompt camera via user gesture (iOS-safe), then start MindAR
     async function requestCameraOnce() {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('getUserMedia unavailable');
-      }
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error('getUserMedia unavailable');
       const s = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } }, audio: false
+        video:{ facingMode:{ ideal:'environment' } }, audio:false
       });
-      s.getTracks().forEach(t => t.stop()); // immediately release; MindAR will reopen
+      s.getTracks().forEach(t=>t.stop()); // release immediately; MindAR opens its own stream
     }
 
     function onReady() {
       startBtn.addEventListener('click', async () => {
         try {
-          await requestCameraOnce(); // shows the permission prompt
+          await requestCameraOnce();                          // show permission prompt
           const mindarSystem = scene.systems['mindar-image-system'];
-          await mindarSystem.start(); // starts camera + tracking
+          await mindarSystem.start();                         // start camera + tracking
           startOverlay.style.display = 'none';
         } catch (e) {
           console.warn('Start failed:', e);
@@ -75,9 +73,8 @@
     }
     if (scene.hasLoaded) onReady(); else scene.addEventListener('loaded', onReady);
 
-    // Video behavior tied to target detection
-    target.addEventListener('targetFound', async () => { try { await vid.play(); } catch(e){} });
-    target.addEventListener('targetLost', () => vid.pause());
+    target.addEventListener('targetFound', async ()=>{ try{ await vid.play(); }catch(e){} });
+    target.addEventListener('targetLost', ()=> vid.pause());
   </script>
 </body>
 </html>
