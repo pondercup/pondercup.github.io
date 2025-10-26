@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Camera Test</title>
+  <style>
+    html,body{height:100%;margin:0;background:#000;color:#fff;font-family:system-ui}
+    main{display:grid;place-items:center;height:100%}
+    video{width:100vw;height:100vh;object-fit:cover;background:#111}
+    button{position:fixed;z-index:2;bottom:16px;left:50%;transform:translateX(-50%);
+      padding:12px 16px;border:0;border-radius:12px;background:#39c5bb;color:#042;font-weight:700}
+    pre{position:fixed;top:0;left:0;right:0;padding:8px;white-space:pre-wrap}
+  </style>
+</head>
+<body>
+  <pre id="log">Tap “Start Camera” and allow permission…</pre>
+  <main><video id="v" playsinline webkit-playsinline muted></video></main>
+  <button id="btn">Start Camera</button>
+  <script>
+    const log=(...a)=>document.getElementById('log').textContent=a.join(' ');
+    document.getElementById('btn').onclick=async()=>{
+      try{
+        const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+        const v=document.getElementById('v'); v.srcObject=s; await v.play();
+        log('✅ Camera started.');
+      }catch(e){ console.error(e); log('❌ Camera failed: '+(e?.message||e)); }
+    };
+  </script>
+</body>
+</html>
